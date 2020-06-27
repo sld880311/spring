@@ -592,6 +592,7 @@ public class SqlSessionFactoryBean
       }
     }
 
+//    默认使用SpringManagedTransactionFactory作为事务管理器
     targetConfiguration.setEnvironment(new Environment(this.environment,
         this.transactionFactory == null ? new SpringManagedTransactionFactory() : this.transactionFactory,
         this.dataSource));

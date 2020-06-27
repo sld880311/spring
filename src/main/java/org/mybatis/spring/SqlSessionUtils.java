@@ -93,17 +93,22 @@ public final class SqlSessionUtils {
 
     notNull(sessionFactory, NO_SQL_SESSION_FACTORY_SPECIFIED);
     notNull(executorType, NO_EXECUTOR_TYPE_SPECIFIED);
-
+    //根据sqlSessionFactory从当前线程对应的资源map中获取SqlSessionHolder，
+    // 当sqlSessionFactory创建了sqlSession，
+    //就会在事务管理器中添加一对映射：key为sqlSessionFactory，value为SqlSessionHolder，
+    // 该类保存sqlSession及执行方式
     SqlSessionHolder holder = (SqlSessionHolder) TransactionSynchronizationManager.getResource(sessionFactory);
-
+    //从SqlSessionHolder中提取SqlSession对象
     SqlSession session = sessionHolder(executorType, holder);
     if (session != null) {
       return session;
     }
 
     LOGGER.debug(() -> "Creating a new SqlSession");
+    //如果当前事物管理器中获取不到SqlSessionHolder对象就重新创建一个
     session = sessionFactory.openSession(executorType);
 
+    //将新创建的SqlSessionHolder对象注册到TransactionSynchronizationManager中
     registerSessionHolder(sessionFactory, executorType, exceptionTranslator, session);
 
     return session;
@@ -115,7 +120,7 @@ public final class SqlSessionUtils {
    * Note: The DataSource used by the Environment should be synchronized with the transaction either through
    * DataSourceTxMgr or another tx synchronization. Further assume that if an exception is thrown, whatever started the
    * transaction will handle closing / rolling back the Connection associated with the SqlSession.
-   * 
+   *
    * @param sessionFactory
    *          sqlSessionFactory used for registration.
    * @param executorType
@@ -186,12 +191,15 @@ public final class SqlSessionUtils {
     notNull(session, NO_SQL_SESSION_SPECIFIED);
     notNull(sessionFactory, NO_SQL_SESSION_FACTORY_SPECIFIED);
 
+    //其实下面就是判断session是否被Spring事务管理，如果管理就会得到holder
     SqlSessionHolder holder = (SqlSessionHolder) TransactionSynchronizationManager.getResource(sessionFactory);
     if ((holder != null) && (holder.getSqlSession() == session)) {
       LOGGER.debug(() -> "Releasing transactional SqlSession [" + session + "]");
+      //这里释放的作用，不是关闭，只是减少一下引用数，因为后面可能会被复用
       holder.released();
     } else {
       LOGGER.debug(() -> "Closing non transactional SqlSession [" + session + "]");
+      //如果不是被spring管理，那么就不会被Spring去关闭回收，就需要自己close
       session.close();
     }
   }
